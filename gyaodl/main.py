@@ -10,7 +10,7 @@ from typing import List, Tuple, Union
 from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
-from . import dl
+from gyaodl import dl
 
 GYAO_APPID = 'dj00aiZpPUNJeDh2cU1RazU3UCZzPWNvbnN1bWVyc2VjcmV0Jng9NTk-'
 BRIGHTCOVE_ID_OF_GYAO = '4235717419001'
