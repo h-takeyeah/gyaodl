@@ -4,7 +4,7 @@ Take GYAO! video URL, try to find out HLS stream and save it as a mp4 file.
 
 ## Usage
 
-**NOTE:** URL must be `^https://gyao.yahoo.co.jp/title(/[^/]+/|/)[0-9a-z-]+$` format.
+**NOTE:** URL must be in `^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$` format.
 
 ```sh
 python3 -m gyaodl [URL]
@@ -21,7 +21,7 @@ Following commands installs `gyaodl` as global one.
 
 ```pwsh
 py -3 -m pip install wheel # If not installed
-py -3 setup.py sdist # Run this command the directory where setup.py exists.
+py -3 setup.py sdist
 py -3 -m pip install .\dist\gyaodl-{version}.tar.gz
 ```
 
@@ -29,9 +29,11 @@ py -3 -m pip install .\dist\gyaodl-{version}.tar.gz
 
 ```sh
 pip3 install wheel # If not installed
-python3 setup.py sdist # Run this command the directory where setup.py exists.
+python3 setup.py sdist
 pip3 install .\dist\gyaodl-{version}.tar.gz
 ```
+
+**Note:** Run these commands at the directory where `setup.py` exists. Not inside gyaodl module direcotry(which holds `__init__.py`).
 
 ### Requirements(other than Python)
 
@@ -41,7 +43,21 @@ pip3 install .\dist\gyaodl-{version}.tar.gz
 
 ## Note
 
-When you run `gyaodl -h`, you'll see output like `main.py [-h] url`. Because of [argparse](https://docs.python.org/3.8/library/argparse.html), the output becomes `main.py`. It's equivalent to `gyaodl`.
+You can try the command before `pip install`.
+
+- Windows10
+
+```pwsh
+py -3 -m gyaodl [URL]
+```
+
+- Linux
+
+```sh
+python3 -m gyaodl [URL]
+```
+
+**Note:** Run above commands at the directory where `setup.py` exists. Not inside gyaodl module direcotry(which holds `__init__.py`).
 
 ---
 
