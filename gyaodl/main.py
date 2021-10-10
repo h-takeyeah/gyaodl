@@ -47,7 +47,7 @@ class GrepVideoInfo(HTMLParser):
 
 def gyao_url_to_video_info(url: str) -> dict:
 
-    ptn = re.compile(r'^https://gyao.yahoo.co.jp/title(/[^/]+/|/)[0-9a-z-]+$')
+    ptn = re.compile(r'^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$')
 
     if not ptn.match(url):
         raise TypeError('This URL is not supported.')
@@ -140,7 +140,8 @@ def main() -> None:
     # Start
     print('Start')
 
-    # GYAO URL schema: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
+    # GYAO URL schema1: gyao.yahoo.co.jp/episode/{Japanese title(may be empty)}/{uuid}
+    # GYAO URL schema2: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
     # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
     gyao_video_info = gyao_url_to_video_info(args.url)
     gyao_videoid = gyao_video_info['vid']
