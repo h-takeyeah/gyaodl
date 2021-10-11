@@ -35,7 +35,7 @@ def dl_hls_stream(pl_url: str, title: str) -> str:
         raise Exception('streamlink not found')
 
     # Replace invalid characters with '_'.
-    invalid_chars = [' ', '\u3000', '\\', '/', ':', ';', '*', '?', '"', '<', '>', '|', '%', '’']
+    invalid_chars = [' ', '\u3000', '\\', '/', ':', ';', '*', '?', '"', '<', '>', '|', '%', '’', '!']
     trimed_title = title.translate(str.maketrans({k: '_' for k in invalid_chars}))
 
     file_path = DIR.joinpath(trimed_title)
