@@ -42,7 +42,7 @@ def dl_hls_stream(pl_url: str, title: str) -> str:
 
     # Save HLS stream to mp4
     subprocess.run(args=shlex.split(
-        f'ffmpeg -i {pl_url} -c copy -movflags faststart {file_path}.mp4 -loglevel fatal', posix=(p_name != 'Windows')))  # posix: Avoid stripping backslash(Windows).
+        f'ffmpeg -n -i {pl_url} -c copy -movflags faststart {file_path}.mp4 -loglevel fatal', posix=(p_name != 'Windows')))  # posix: Avoid stripping backslash(Windows).
     sleep(2)
 
     # chmod
