@@ -14,7 +14,7 @@ from http.client import HTTPResponse
 from gyaodl import dl
 
 
-program_version = '0.4'
+program_version = '0.5'
 
 GYAO_APPID = 'dj00aiZpPUNJeDh2cU1RazU3UCZzPWNvbnN1bWVyc2VjcmV0Jng9NTk-'
 BRIGHTCOVE_ID_OF_GYAO = '4235717419001'
