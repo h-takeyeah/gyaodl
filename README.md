@@ -7,7 +7,22 @@ Take GYAO! video URL, try to find out HLS stream and save it as a mp4 file.
 **NOTE:** URL must be in `^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$` format.
 
 ```sh
-python3 -m gyaodl [URL]
+python3 -m gyaodl [url]
+```
+
+Output of `python3 -m gyaodl -h`
+
+```sh
+usage: gyaodl [-h] [--series] url
+
+Download GYAO! video as mp4 file.
+
+positional arguments:
+  url         GYAO! video URL
+
+options:
+  -h, --help  show this help message and exit
+  --series    download all available episodes
 ```
 
 - Output file will be created where you run the command.
