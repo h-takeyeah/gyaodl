@@ -185,7 +185,7 @@ def main() -> None:
 
     # Save log file at the directory where this script is installed.
     script_installed_at = Path(__file__).parent.resolve()
-    fh = logging.FileHandler(script_installed_at.joinpath('application.log'), delay=True)
+    fh = logging.FileHandler(script_installed_at.joinpath('application.log'), encoding='utf8', delay=True)
     fmt = logging.Formatter('%(asctime)s %(lineno)d %(levelname)s %(message)s')
     fh.setFormatter(fmt)
     logger.addHandler(fh)

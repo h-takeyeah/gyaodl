@@ -12,7 +12,7 @@ python3 -m gyaodl [url]
 
 Output of `python3 -m gyaodl -h`
 
-```sh
+```plain
 usage: gyaodl [-h] [--series] url
 
 Download GYAO! video as mp4 file.
@@ -45,7 +45,7 @@ py -3 -m pip install .\dist\gyaodl-{version}.tar.gz
 ```sh
 pip3 install wheel # If not installed
 python3 setup.py sdist
-pip3 install .\dist\gyaodl-{version}.tar.gz
+pip3 install ./dist/gyaodl-{version}.tar.gz
 ```
 
 **Note:** Run these commands at the directory where `setup.py` exists. Not inside gyaodl module direcotry(which holds `__init__.py`).
