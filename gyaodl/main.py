@@ -9,6 +9,7 @@ from html.parser import HTMLParser
 from typing import List, Tuple, Union
 from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
+from http.client import HTTPResponse
 
 from gyaodl import dl
 
@@ -43,6 +44,30 @@ class GrepVideoInfo(HTMLParser):
     def feed(self, data: str) -> dict:
         super().feed(data)
         return self.video_info
+
+
+class EndPointGetter(HTMLParser):
+    '''
+    EndPointGetter
+
+    A parser that parses given HTML source. It searches for the `data-endpoint-url` attribute
+    relating to the video series and returns its value as the feed() function's return value.
+    '''
+
+    def __init__(self, *, convert_charrefs: bool = ...) -> None:
+        super().__init__(convert_charrefs=convert_charrefs)
+        self.endpoint_url = ''
+        self.ptn = re.compile(r'^/api/programs/[0-9a-z-]+/videos$')
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Union[str, None]]]) -> None:
+        d = dict(attrs)
+        endpoint_url = d.get('data-endpoint-url')
+        if endpoint_url and self.ptn.match(endpoint_url):
+            self.endpoint_url = endpoint_url
+
+    def feed(self, data: str) -> str:
+        super().feed(data)
+        return self.endpoint_url
 
 
 def gyao_url_to_video_info(url: str) -> dict:
@@ -118,10 +143,38 @@ def get_playlist_url(brightcove_id: str) -> str:
         return ''  # Not found
 
 
+def get_available_episodes(url: str) -> list[str]:
+    ptn = re.compile(r'^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$')
+
+    if not ptn.match(url):
+        raise TypeError('This URL is not supported.')
+
+    res: HTTPResponse
+    # If url is already encoded, it will be decoded before re-encoding.
+    # If url is not encoded, it will be encoded.
+    with urlopen(quote(unquote(url), safe='/:+')) as res:
+        html_content = res.read()  # bytes
+        parser = EndPointGetter()
+        endpoint_path = parser.feed(html_content.decode())
+
+    # replace url.path with endpoint_path
+    with urlopen(url.replace(urlparse(url).path, endpoint_path)) as res:
+        assert 'json' in res.headers.get_content_type()
+
+        json_body = json.loads(res.read())
+        # The loaded JSON must be "dict" type, and its property "videos" must be "list" type.
+        assert type(json_body) == dict and type(json_body.get('videos')) == list
+
+        # streamingAvailability: the episode is publicly available or not
+        # shorWebUrl: link to a video page (example https://gyao.yahoo.co.jp/episode/1234)
+        return [v.get('shortWebUrl') for v in json_body.get('videos') if v.get('streamingAvailability', True) and v.get('shortWebUrl')]
+
+
 def main() -> None:
     # Create an argparser
     parser = argparse.ArgumentParser(prog='gyaodl', description='Download GYAO! video as mp4 file.')
-    parser.add_argument('url', help='GYAO video URL')
+    parser.add_argument('url', help='GYAO! video URL')
+    parser.add_argument('--series', action='store_true', default=False, help='download all available episodes')
 
     # Create a logger
     logger = logging.getLogger('GYAODownloader')
@@ -140,49 +193,63 @@ def main() -> None:
     # Start
     print('Start')
 
-    # GYAO URL schema1: gyao.yahoo.co.jp/episode/{Japanese title(may be empty)}/{uuid}
-    # GYAO URL schema2: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
-    # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
-    gyao_video_info = gyao_url_to_video_info(args.url)
-    gyao_videoid = gyao_video_info['vid']
-    logger.debug(f'gyao_videoid: {gyao_videoid}')
+    # Prepare a list of video viewing page URLs.
+    # By default, it downloads one episode.
+    episodes: list[str] = [args.url]
 
-    # Convert gyao videoid to video id which is managed by brightcove.com
-    # get_video_metadata returns { delivery_id, title }
-    metadata = get_video_metadata(gyao_videoid)
+    # When using the --series option, "gyaodl" downloads all episodes.
+    # For example, when you give a URL representing the 3rd episode of the series
+    # you want to see to "gyaodl" and that series has 12 episodes in total, "gyaodl"
+    # downloads all episodes of the series. It means that you can download all of
+    # the episodes from the 1st one to the 12th one at once.
+    if args.series:
+        episodes = get_available_episodes(args.url)
 
-    # Handle the condition that delivery_id is falsy.
-    if not metadata.get('delivery_id') or len(metadata.get('delivery_id')) == 0:
-        print(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
-        logger.error(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
-        return
+    for ep_url in episodes:
+        # GYAO URL schema1: gyao.yahoo.co.jp/episode/{Japanese title(may be empty)}/{uuid}
+        # GYAO URL schema2: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
+        # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
+        gyao_video_info = gyao_url_to_video_info(ep_url)
+        gyao_videoid = gyao_video_info['vid']
+        logger.debug(f'gyao_videoid: {gyao_videoid}')
 
-    brightcove_id = metadata['delivery_id']
-    title = metadata['title']
+        # Convert gyao videoid to video id which is managed by brightcove.com
+        # get_video_metadata returns { delivery_id, title }
+        metadata = get_video_metadata(gyao_videoid)
 
-    print(f'Video found (Title:{title})')
-    logger.debug(f'brightcove_id: {brightcove_id}')
+        # Handle the condition that delivery_id is falsy.
+        if not metadata.get('delivery_id') or len(metadata.get('delivery_id')) == 0:
+            print(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
+            logger.error(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
+            return
 
-    # Get a playlist
-    playlist_url = get_playlist_url(brightcove_id)
-    logger.debug(f'playlist_url: {playlist_url}')
+        brightcove_id = metadata['delivery_id']
+        title = metadata['title']
 
-    # Determine that function finished successfully or not.
-    if len(playlist_url) == 0:
-        print('Failed to get the playlist url.')
-        logger.error('Failed to get the playlist url.')
-        return
+        print(f'Video found (Title:{title})')
+        logger.debug(f'brightcove_id: {brightcove_id}')
 
-    if not urlparse(playlist_url).path.endswith('m3u8'):
-        logger.error('The playlist URL format was different than expected.')
-        print('The playlist URL format was different than expected.')
-        logger.debug(f'URL: {playlist_url}')
-        print(f'URL: {playlist_url}')
-        return
+        # Get a playlist
+        playlist_url = get_playlist_url(brightcove_id)
+        logger.debug(f'playlist_url: {playlist_url}')
 
-    # Download
-    saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
+        # Determine that function finished successfully or not.
+        if len(playlist_url) == 0:
+            print('Failed to get the playlist url.')
+            logger.error('Failed to get the playlist url.')
+            return
 
-    # Done
-    print(f'Movie saved at "{saved_at}"')
+        if not urlparse(playlist_url).path.endswith('m3u8'):
+            logger.error('The playlist URL format was different than expected.')
+            print('The playlist URL format was different than expected.')
+            logger.debug(f'URL: {playlist_url}')
+            print(f'URL: {playlist_url}')
+            return
+
+        # Download
+        saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
+
+        # Done
+        print(f'Movie saved at "{saved_at}"')
+
     print('Done')
