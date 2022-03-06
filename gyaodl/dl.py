@@ -38,11 +38,13 @@ def dl_hls_stream(pl_url: str, title: str) -> str:
     invalid_chars = [' ', '\u3000', '\\', '/', ':', ';', '*', '?', '"', '<', '>', '|', '%', '\u2019', '!']
     trimed_title = title.translate(str.maketrans({k: '_' for k in invalid_chars}))
 
-    file_path = DIR.joinpath(trimed_title)
+    file_path = DIR.joinpath(trimed_title + '.mp4')
+    if file_path.exists():
+        raise FileExistsError(f'{trimed_title} already exists')
 
     # Save HLS stream to mp4
     subprocess.run(args=shlex.split(
-        f'ffmpeg -n -i {pl_url} -c copy -movflags faststart {file_path}.mp4 -loglevel fatal', posix=(p_name != 'Windows')))  # posix: Avoid stripping backslash(Windows).
+        f'ffmpeg -n -i {pl_url} -c copy -movflags faststart {file_path} -loglevel fatal', posix=(p_name != 'Windows')))  # posix: Avoid stripping backslash(Windows).
     sleep(2)
 
     # chmod
@@ -51,4 +53,4 @@ def dl_hls_stream(pl_url: str, title: str) -> str:
             f.chmod(0o644)
 
     # Return the saved path
-    return f'{file_path}.mp4'
+    return file_path

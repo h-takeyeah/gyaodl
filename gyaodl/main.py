@@ -246,10 +246,17 @@ def main() -> None:
             print(f'URL: {playlist_url}')
             return
 
-        # Download
-        saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
-
-        # Done
-        print(f'Movie saved at "{saved_at}"')
+        try:
+            # Download
+            saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
+        except FileExistsError as eexist:
+            logger.error(eexist)
+            print(eexist)
+            print('Skip')
+        except Exception as e:
+            logger.error(e)
+        else:
+            # Done
+            print(f'The video has been saved. ({saved_at})')
 
     print('Done')
