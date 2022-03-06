@@ -13,6 +13,9 @@ from http.client import HTTPResponse
 
 from gyaodl import dl
 
+
+program_version = '0.3'
+
 GYAO_APPID = 'dj00aiZpPUNJeDh2cU1RazU3UCZzPWNvbnN1bWVyc2VjcmV0Jng9NTk-'
 BRIGHTCOVE_ID_OF_GYAO = '4235717419001'
 BRIGHTCOVE_API_PK = (
@@ -173,6 +176,7 @@ def get_available_episodes(url: str) -> list[str]:
 def main() -> None:
     # Create an argparser
     parser = argparse.ArgumentParser(prog='gyaodl', description='Download GYAO! video as mp4 file.')
+    parser.add_argument('--version', action='version', version=program_version)
     parser.add_argument('url', help='GYAO! video URL')
     parser.add_argument('--series', action='store_true', default=False, help='download all available episodes')
 
