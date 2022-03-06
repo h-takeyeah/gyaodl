@@ -254,7 +254,6 @@ def main() -> None:
             # Download
             saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
         except FileExistsError as eexist:
-            logger.error(eexist)
             print(eexist)
             print('Skip')
         except Exception as e:
