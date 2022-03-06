@@ -120,7 +120,7 @@ def get_playlist_url(brightcove_id: str) -> str:
 
 def main() -> None:
     # Create an argparser
-    parser = argparse.ArgumentParser(description='Download GYAO! video as mp4 file.')
+    parser = argparse.ArgumentParser(prog='gyaodl', description='Download GYAO! video as mp4 file.')
     parser.add_argument('url', help='GYAO video URL')
 
     # Create a logger
