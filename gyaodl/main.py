@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
@@ -163,9 +164,32 @@ def get_available_episodes(url: str) -> list[str]:
         # The loaded JSON must be "dict" type, and its property "videos" must be "list" type.
         assert type(json_body) == dict and type(json_body.get('videos')) == list
 
-        # streamingAvailability: the episode is publicly available or not
+        def _filter(v: dict) -> bool:
+            # ensure "shortWebUrl" key exists
+            if type(v) != dict or not v.get('shortWebUrl'):
+                return False
+            # streamingAvailability: the episode is publicly available or not yet
+            elif str(v.get('streamingAvailability', "available")).lower() != "available":
+                return False
+            else:
+                # The following blocks are meaningless if "streamingAvailabilty" was
+                # determined based on the period from the start date to the end date.
+                try:
+                    start_date = datetime.fromisoformat(v.get('startDate', ''))
+                    end_date = datetime.fromisoformat(v.get('endDate', ''))
+                    if start_date.utcoffset():
+                        now = datetime.now(timezone(start_date.utcoffset()))
+                    else:
+                        now = datetime.now()
+                    return now >= start_date and now < end_date
+                except ValueError: # Invalid isoformat string
+                    pass
+
+                # unknown rule
+                return True
+
         # shorWebUrl: link to a video page (example https://gyao.yahoo.co.jp/episode/1234)
-        return [v.get('shortWebUrl') for v in json_body.get('videos') if v.get('streamingAvailability', True) and v.get('shortWebUrl')]
+        return [v.get('shortWebUrl') for v in json_body.get('videos') if _filter(v)]
 
 
 def is_expected_url(url: str) -> bool:
