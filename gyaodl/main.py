@@ -147,11 +147,6 @@ def get_playlist_url(brightcove_id: str) -> str:
 
 
 def get_available_episodes(url: str) -> list[str]:
-    ptn = re.compile(r'^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$')
-
-    if not ptn.match(url):
-        raise TypeError('This URL is not supported.')
-
     res: HTTPResponse
     # If url is already encoded, it will be decoded before re-encoding.
     # If url is not encoded, it will be encoded.
@@ -171,6 +166,13 @@ def get_available_episodes(url: str) -> list[str]:
         # streamingAvailability: the episode is publicly available or not
         # shorWebUrl: link to a video page (example https://gyao.yahoo.co.jp/episode/1234)
         return [v.get('shortWebUrl') for v in json_body.get('videos') if v.get('streamingAvailability', True) and v.get('shortWebUrl')]
+
+
+def is_expected_url(url: str) -> bool:
+    if not re.match(r'^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$', url):
+        return False
+
+    return True
 
 
 def main() -> None:
@@ -196,6 +198,10 @@ def main() -> None:
 
     # Start
     print('Start')
+
+    # Throws an error if the given URL does not follow a supported format
+    if not is_expected_url(args.url):
+        raise ValueError('Unexpected URL')
 
     # Prepare a list of video viewing page URLs.
     # By default, it downloads one episode.
