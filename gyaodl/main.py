@@ -231,7 +231,7 @@ def main() -> None:
         if not metadata.get('delivery_id') or len(metadata.get('delivery_id')) == 0:
             print(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
             logger.error(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
-            return
+            continue
 
         brightcove_id = metadata['delivery_id']
         title = metadata['title']
@@ -247,14 +247,14 @@ def main() -> None:
         if len(playlist_url) == 0:
             print('Failed to get the playlist url.')
             logger.error('Failed to get the playlist url.')
-            return
+            continue
 
         if not urlparse(playlist_url).path.endswith('m3u8'):
             logger.error('The playlist URL format was different than expected.')
             print('The playlist URL format was different than expected.')
             logger.debug(f'URL: {playlist_url}')
             print(f'URL: {playlist_url}')
-            return
+            continue
 
         try:
             # Download
