@@ -71,12 +71,17 @@ class EndPointGetter(HTMLParser):
 
 
 def gyao_url_to_video_info(url: str) -> str:
+    res: HTTPResponse
     # If url is already encoded, it will be decoded before re-encoding.
     # If url is not encoded, it will be encoded.
     with urlopen(quote(unquote(url), safe='/:+')) as res:
         html_content = res.read()  # bytes
+        if res.headers.get_content_charset():
+            charset = res.headers.get_content_charset()
+        else:
+            charset = 'utf8'
         parser = VideoIdGetter()
-        return parser.feed(html_content.decode())
+        return parser.feed(html_content.decode(charset))
 
 
 def get_video_metadata(gyao_videoid: str) -> dict:
@@ -143,8 +148,12 @@ def get_available_episodes(url: str) -> list[str]:
     # If url is not encoded, it will be encoded.
     with urlopen(quote(unquote(url), safe='/:+')) as res:
         html_content = res.read()  # bytes
+        if res.headers.get_content_charset():
+            charset = res.headers.get_content_charset()
+        else:
+            charset = 'utf8'
         parser = EndPointGetter()
-        endpoint_path = parser.feed(html_content.decode())
+        endpoint_path = parser.feed(html_content.decode(charset))
 
     # replace url.path with endpoint_path
     with urlopen(url.replace(urlparse(url).path, endpoint_path)) as res:
