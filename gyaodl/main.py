@@ -110,6 +110,7 @@ def get_video_metadata(gyao_videoid: str) -> dict:
     req = Request(f'https://gyao.yahoo.co.jp/apis/playback/graphql?{urlencode(query_parameters)}')
 
     with urlopen(req) as res:
+        assert 'json' in res.headers.get_content_type(), f'Unexpected Content-Type ({res.headers.get_content_type()})'
         parsed = json.loads(res.read())
 
         # May be not found.
@@ -127,7 +128,9 @@ def get_playlist_url(brightcove_id: str) -> str:
     req = Request(
         f'https://edge.api.brightcove.com/playback/v1/accounts/{BRIGHTCOVE_ID_OF_GYAO}/videos/{brightcove_id}', headers=headers)
     with urlopen(req) as res:
+        assert 'json' in res.headers.get_content_type(), f'Unexpected Content-Type ({res.headers.get_content_type()})'
         parsed = json.loads(res.read())
+        assert type(parsed) == dict and type(parsed.get('sources')) == list, 'Unexpected JSON schema'
 
         # Search for a hls stream
         for v in parsed['sources']:
@@ -158,11 +161,11 @@ def get_available_episodes(url: str) -> list[str]:
 
     # replace url.path with endpoint_path
     with urlopen(url.replace(urlparse(url).path, endpoint_path)) as res:
-        assert 'json' in res.headers.get_content_type()
+        assert 'json' in res.headers.get_content_type(), f'Unexpected Content-Type ({res.headers.get_content_type()})'
 
         json_body = json.loads(res.read())
         # The loaded JSON must be "dict" type, and its property "videos" must be "list" type.
-        assert type(json_body) == dict and type(json_body.get('videos')) == list
+        assert type(json_body) == dict and type(json_body.get('videos')) == list, 'Unexpected JSON schema'
 
         def _filter(v: dict) -> bool:
             # ensure "shortWebUrl" key exists
@@ -240,56 +243,61 @@ def main() -> None:
         episodes = get_available_episodes(args.url)
 
     for ep_url in episodes:
-        # GYAO URL schema1: gyao.yahoo.co.jp/episode/{Japanese title(may be empty)}/{uuid}
-        # GYAO URL schema2: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
-        # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
-        gyao_videoid = gyao_url_to_video_info(ep_url)
-
-        logger.debug(f'gyao_videoid: {gyao_videoid}')
-
-        # Convert gyao videoid to video id which is managed by brightcove.com
-        # get_video_metadata returns { delivery_id, title }
-        metadata = get_video_metadata(gyao_videoid)
-
-        # Handle the condition that delivery_id is falsy.
-        if not metadata.get('delivery_id') or len(metadata.get('delivery_id')) == 0:
-            print(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
-            logger.error(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
-            continue
-
-        brightcove_id = metadata['delivery_id']
-        title = metadata['title']
-
-        print(f'Video found (Title:{title})')
-        logger.debug(f'brightcove_id: {brightcove_id}')
-
-        # Get a playlist
-        playlist_url = get_playlist_url(brightcove_id)
-        logger.debug(f'playlist_url: {playlist_url}')
-
-        # Determine that function finished successfully or not.
-        if len(playlist_url) == 0:
-            print('Failed to get the playlist url.')
-            logger.error('Failed to get the playlist url.')
-            continue
-
-        if not urlparse(playlist_url).path.endswith('m3u8'):
-            logger.error('The playlist URL format was different than expected.')
-            print('The playlist URL format was different than expected.')
-            logger.debug(f'URL: {playlist_url}')
-            print(f'URL: {playlist_url}')
-            continue
-
         try:
-            # Download
-            saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
-        except FileExistsError as eexist:
-            print(eexist)
-            print('Skip')
-        except Exception as e:
-            logger.error(e)
-        else:
-            # Done
-            print(f'The video has been saved. ({saved_at})')
+            # GYAO URL schema1: gyao.yahoo.co.jp/episode/{Japanese title(may be empty)}/{uuid}
+            # GYAO URL schema2: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
+            # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
+            gyao_videoid = gyao_url_to_video_info(ep_url)
+
+            logger.debug(f'gyao_videoid: {gyao_videoid}')
+
+            # Convert gyao videoid to video id which is managed by brightcove.com
+            # get_video_metadata returns { delivery_id, title }
+            metadata = get_video_metadata(gyao_videoid)
+
+            # Handle the condition that delivery_id is falsy.
+            if not metadata.get('delivery_id') or len(metadata.get('delivery_id')) == 0:
+                print(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
+                logger.error(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
+                continue
+
+            brightcove_id = metadata['delivery_id']
+            title = metadata['title']
+
+            print(f'Video found (Title:{title})')
+            logger.debug(f'brightcove_id: {brightcove_id}')
+
+            # Get a playlist
+            playlist_url = get_playlist_url(brightcove_id)
+            logger.debug(f'playlist_url: {playlist_url}')
+
+            # Determine that function finished successfully or not.
+            if len(playlist_url) == 0:
+                print('Failed to get the playlist url.')
+                logger.error('Failed to get the playlist url.')
+                continue
+
+            if not urlparse(playlist_url).path.endswith('m3u8'):
+                logger.error('The playlist URL format was different than expected.')
+                print('The playlist URL format was different than expected.')
+                logger.debug(f'URL: {playlist_url}')
+                print(f'URL: {playlist_url}')
+                continue
+
+            try:
+                # Download
+                saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
+            except FileExistsError as eexist:
+                print(eexist)
+                print('Skip')
+            except Exception as e:
+                logger.error(e)
+            else:
+                # Done
+                print(f'The video has been saved. ({saved_at})')
+
+        except AssertionError as ae:
+            print(ae)
+            continue
 
     print('Done')
