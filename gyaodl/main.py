@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 import re
 from html.parser import HTMLParser
-from typing import List, Tuple, Union
 from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 from http.client import HTTPResponse
@@ -25,28 +24,26 @@ BRIGHTCOVE_API_PK = (
 )
 
 
-class GrepVideoInfo(HTMLParser):
+class VideoIdGetter(HTMLParser):
     '''
-    GrepVideoInfo
+    VideoIdGetter
 
     Original parser that parses HTML source of a GYAO! video page and find data-vid attribute.
     '''
 
-    def __init__(self, *, convert_charrefs: bool = ...) -> None:
+    def __init__(self, *, convert_charrefs=True) -> None:
         super().__init__(convert_charrefs=convert_charrefs)
-        self.video_info = {'vid': ''}
+        self.vid = ''
 
-    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Union[str, None]]]) -> None:
+    def handle_starttag(self, _tag: str, attrs: list[tuple]) -> None:
         # It is guaranteed that the tuple in attrs has only two elements.
         d = dict(attrs)
-        if tag == 'div' and 'gyao-player' in d.get('class', ''):
-            self.video_info['vid'] = d.get('data-vid', '')
-            if len(self.video_info) == 0:
-                raise Exception('"gyao-player" div element has no data for "data-vid" attribute.')
+        if 'gyao-player' in d.get('class', ''):
+            self.vid = d.get('data-vid', '')
 
-    def feed(self, data: str) -> dict:
+    def feed(self, data: str) -> str:
         super().feed(data)
-        return self.video_info
+        return self.vid
 
 
 class EndPointGetter(HTMLParser):
@@ -57,12 +54,12 @@ class EndPointGetter(HTMLParser):
     relating to the video series and returns its value as the feed() function's return value.
     '''
 
-    def __init__(self, *, convert_charrefs: bool = ...) -> None:
+    def __init__(self, *, convert_charrefs=True) -> None:
         super().__init__(convert_charrefs=convert_charrefs)
         self.endpoint_url = ''
         self.ptn = re.compile(r'^/api/programs/[0-9a-z-]+/videos$')
 
-    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Union[str, None]]]) -> None:
+    def handle_starttag(self, _tag: str, attrs: list[tuple]) -> None:
         d = dict(attrs)
         endpoint_url = d.get('data-endpoint-url')
         if endpoint_url and self.ptn.match(endpoint_url):
@@ -73,18 +70,12 @@ class EndPointGetter(HTMLParser):
         return self.endpoint_url
 
 
-def gyao_url_to_video_info(url: str) -> dict:
-
-    ptn = re.compile(r'^https://gyao.yahoo.co.jp/(episode|title)(/[^/]+/|/)[0-9a-z-]+$')
-
-    if not ptn.match(url):
-        raise TypeError('This URL is not supported.')
-
+def gyao_url_to_video_info(url: str) -> str:
     # If url is already encoded, it will be decoded before re-encoding.
     # If url is not encoded, it will be encoded.
     with urlopen(quote(unquote(url), safe='/:+')) as res:
         html_content = res.read()  # bytes
-        parser = GrepVideoInfo()
+        parser = VideoIdGetter()
         return parser.feed(html_content.decode())
 
 
@@ -219,8 +210,8 @@ def main() -> None:
         # GYAO URL schema1: gyao.yahoo.co.jp/episode/{Japanese title(may be empty)}/{uuid}
         # GYAO URL schema2: gyao.yahoo.co.jp/title/{Japanese title(may be empty)}/{uuid}
         # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
-        gyao_video_info = gyao_url_to_video_info(ep_url)
-        gyao_videoid = gyao_video_info['vid']
+        gyao_videoid = gyao_url_to_video_info(ep_url)
+
         logger.debug(f'gyao_videoid: {gyao_videoid}')
 
         # Convert gyao videoid to video id which is managed by brightcove.com
