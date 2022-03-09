@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import json
 import re
 from dataclasses import asdict, dataclass, fields

@@ -8,59 +8,19 @@ from datetime import datetime, timezone
 from http.client import NOT_FOUND
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from gyaodl import dl, programs
+from gyaodl import dl, playback, programs
 
 program_version = '0.5'
 
-GYAO_APPID = 'dj00aiZpPUNJeDh2cU1RazU3UCZzPWNvbnN1bWVyc2VjcmV0Jng9NTk-'
 BRIGHTCOVE_ID_OF_GYAO = '4235717419001'
 BRIGHTCOVE_API_PK = (
     'BCpkADawqM1O4pwi3SZ75b8DE1c2l78PZ418NByBa33h737r'
     'Wv6uhPJHYkaZ6xHINTj5oOqa0-zarOEvQ6e1EqKhBcCppkAU'
     'Wuo5QSKWVC4HZjY2z-Lo_ptwEK3hxfKuvZXkdNuyOM5nNSWy'
 )
-
-
-def get_video_metadata(gyao_videoid: str) -> dict:
-    variables = json.dumps({
-        'videoId': gyao_videoid,
-        'logicaAgent': 'PC_WEB',
-        'clientSpaceId': '1183050133',
-        'os': 'UNKNOWN',
-        'device': 'PC'
-    })
-    graphql_query = (
-        'query Playback($videoId: ID!, $logicaAgent: LogicaAgent!, '
-        '$clientSpaceId: String!, $os: Os!, $device: Device!) '
-        '{ content( parameter: { contentId: $videoId logicaAgent: $logicaAgent '
-        'clientSpaceId: $clientSpaceId os: $os device: $device view: WEB } ) '
-        '{ video { id title delivery { id drm } } } }'
-    )
-    query_parameters = {
-        'appId': GYAO_APPID,  # appId
-        'query': graphql_query,  # query string for GraphQL
-        'variables': variables  # variables for GraphQL(JSON formatted string)
-    }
-
-    # urlencode(): Encode a dict or sequence of two-element tuples into a URL query string.
-    req = Request(f'https://gyao.yahoo.co.jp/apis/playback/graphql?{urlencode(query_parameters)}')
-
-    with urlopen(req) as res:
-        assert 'json' in res.headers.get_content_type(), f'Unexpected Content-Type ({res.headers.get_content_type()})'
-        parsed = json.loads(res.read())
-        assert type(parsed) == dict, 'Unexpected JSON schema'
-
-        # May be not found.
-        if parsed.get('data', {}).get('content') is None:
-            return {'delivery_id': '', 'title': ''}
-
-        return {
-            'delivery_id': parsed['data']['content']['video']['delivery']['id'],
-            'title': parsed['data']['content']['video']['title']
-        }
 
 
 def get_playlist_url(brightcove_id: str) -> str:
@@ -177,17 +137,16 @@ def main() -> None:
             logger.debug(f'gyao_videoid: {gyao_videoid}')
 
             # Convert gyao videoid to video id which is managed by brightcove.com
-            # get_video_metadata returns { delivery_id, title }
-            metadata = get_video_metadata(gyao_videoid)
+            metadata = playback.get_video_metadata(gyao_videoid)
 
-            # Handle the condition that delivery_id is falsy.
-            if not metadata.get('delivery_id') or len(metadata.get('delivery_id')) == 0:
+            # Handle the condition that metadata is None
+            if metadata is None:
                 print(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
                 logger.error(f'Failed to get the metadata with gyao_videoid({gyao_videoid})')
                 continue
 
-            brightcove_id = metadata['delivery_id']
-            title = metadata['title']
+            brightcove_id = metadata.delivery.id
+            title = metadata.title
 
             print(f'Video found (Title:{title})')
             logger.debug(f'brightcove_id: {brightcove_id}')
@@ -211,7 +170,7 @@ def main() -> None:
 
             try:
                 # Download
-                saved_at = dl.dl_hls_stream(playlist_url, metadata['title'])
+                saved_at = dl.dl_hls_stream(playlist_url, metadata.title)
             except FileExistsError as eexist:
                 print(eexist)
                 print('Skip')
