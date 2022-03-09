@@ -1,49 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import json
 import logging
 import re
 from datetime import datetime, timezone
 from http.client import NOT_FOUND
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlparse
-from urllib.request import Request, urlopen
 
 from gyaodl import dl, playback, programs
 
 program_version = '0.5'
-
-BRIGHTCOVE_ID_OF_GYAO = '4235717419001'
-BRIGHTCOVE_API_PK = (
-    'BCpkADawqM1O4pwi3SZ75b8DE1c2l78PZ418NByBa33h737r'
-    'Wv6uhPJHYkaZ6xHINTj5oOqa0-zarOEvQ6e1EqKhBcCppkAU'
-    'Wuo5QSKWVC4HZjY2z-Lo_ptwEK3hxfKuvZXkdNuyOM5nNSWy'
-)
-
-
-def get_playlist_url(brightcove_id: str) -> str:
-    headers = {'Accept': f'application/json;pk={BRIGHTCOVE_API_PK}'}
-    req = Request(
-        f'https://edge.api.brightcove.com/playback/v1/accounts/{BRIGHTCOVE_ID_OF_GYAO}/videos/{brightcove_id}', headers=headers)
-    with urlopen(req) as res:
-        assert 'json' in res.headers.get_content_type(), f'Unexpected Content-Type ({res.headers.get_content_type()})'
-        parsed = json.loads(res.read())
-        assert type(parsed) == dict and type(parsed.get('sources')) == list, 'Unexpected JSON schema'
-
-        # Search for a hls stream
-        for v in parsed['sources']:
-            if not v['type'] == 'application/x-mpegURL':
-                continue
-            elif ('ext_x_version' not in v) or (not v['ext_x_version'] == '4'):
-                continue
-            elif not str(v['src']).startswith('https'):
-                continue
-
-            return v['src']  # Found a stream URL
-
-        return ''  # Not found
 
 
 def is_available_episode(v: programs.Video) -> bool:
@@ -137,7 +104,7 @@ def main() -> None:
             logger.debug(f'gyao_videoid: {gyao_videoid}')
 
             # Convert gyao videoid to video id which is managed by brightcove.com
-            metadata = playback.get_video_metadata(gyao_videoid)
+            metadata: playback.Video = playback.get_video_metadata(gyao_videoid)
 
             # Handle the condition that metadata is None
             if metadata is None:
@@ -152,7 +119,7 @@ def main() -> None:
             logger.debug(f'brightcove_id: {brightcove_id}')
 
             # Get a playlist
-            playlist_url = get_playlist_url(brightcove_id)
+            playlist_url = playback.get_playlist_url(brightcove_id)
             logger.debug(f'playlist_url: {playlist_url}')
 
             # Determine that function finished successfully or not.
@@ -161,12 +128,6 @@ def main() -> None:
                 logger.error('Failed to get the playlist url.')
                 continue
 
-            if not urlparse(playlist_url).path.endswith('m3u8'):
-                logger.error('The playlist URL format was different than expected.')
-                print('The playlist URL format was different than expected.')
-                logger.debug(f'URL: {playlist_url}')
-                print(f'URL: {playlist_url}')
-                continue
 
             try:
                 # Download
