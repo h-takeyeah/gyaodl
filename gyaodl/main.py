@@ -37,7 +37,7 @@ def get_video_metadata(gyao_videoid: str) -> dict:
         '$clientSpaceId: String!, $os: Os!, $device: Device!) '
         '{ content( parameter: { contentId: $videoId logicaAgent: $logicaAgent '
         'clientSpaceId: $clientSpaceId os: $os device: $device view: WEB } ) '
-        '{ video { id title delivery { id drm } duration gyaoUrl } } }'
+        '{ video { id title delivery { id drm } } } }'
     )
     query_parameters = {
         'appId': GYAO_APPID,  # appId
