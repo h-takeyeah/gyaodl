@@ -249,6 +249,12 @@ def main() -> None:
             # Since uuid in URL path is not always same as gyao_videoid, I have to parse HTML source.
             gyao_videoid = gyao_url_to_video_info(ep_url)
 
+            # Without --series option, the episode may be unavailable
+            # because we skipped check by get_available_episodes().
+            if len(gyao_videoid) == 0:
+                print('This episode is not available yet or vid not found')
+                continue
+
             logger.debug(f'gyao_videoid: {gyao_videoid}')
 
             # Convert gyao videoid to video id which is managed by brightcove.com
