@@ -112,9 +112,10 @@ def get_video_metadata(gyao_videoid: str) -> dict:
     with urlopen(req) as res:
         assert 'json' in res.headers.get_content_type(), f'Unexpected Content-Type ({res.headers.get_content_type()})'
         parsed = json.loads(res.read())
+        assert type(parsed) == dict, 'Unexpected JSON schema'
 
         # May be not found.
-        if parsed['data']['content'] is None:
+        if parsed.get('data', {}).get('content') is None:
             return {'delivery_id': '', 'title': ''}
 
         return {
@@ -172,7 +173,7 @@ def get_available_episodes(url: str) -> list[str]:
             if type(v) != dict or not v.get('shortWebUrl'):
                 return False
             # streamingAvailability: the episode is publicly available or not yet
-            elif str(v.get('streamingAvailability', "available")).lower() != "available":
+            elif str(v.get('streamingAvailability', 'available')).lower() != 'available':
                 return False
             else:
                 # The following blocks are meaningless if "streamingAvailabilty" was
