@@ -31,8 +31,6 @@ def dl_hls_stream(pl_url: str, title: str) -> str:
     # Check command existence
     if not cmd_exists('ffmpeg'):
         raise Exception('ffmpeg not found')
-    elif not cmd_exists('streamlink'):
-        raise Exception('streamlink not found')
 
     # Replace invalid characters with '_'.
     invalid_chars = [' ', '\u3000', '\\', '/', ':', ';', '*', '?', '"', '<', '>', '|', '%', '\u2019', '!']
