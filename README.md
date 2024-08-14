@@ -2,7 +2,8 @@
 
 Take GYAO! video URL, try to find out HLS stream and save it as a mp4 file.
 
-> This repository has been archived.
+> *This repository has been archived.*
+> 
 > :headstone: GYAO! closed on March 31, 2023, and this tool no longer works.
 
 ## Usage
